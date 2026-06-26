@@ -1,10 +1,8 @@
 // ──────────────── State ────────────────
-
-let tickerData = [];   // loaded from tickers.json
+let tickerData = [];
 let activeSuggestionIndex = -1;
 
 // ──────────────── Element refs ────────────────
-
 const tickerInput = document.getElementById("ticker-input");
 const researchBtn = document.getElementById("research-btn");
 const progressSection = document.getElementById("progress-section");
@@ -14,7 +12,6 @@ const resultsSection = document.getElementById("results-section");
 const resetBtn = document.getElementById("reset-btn");
 
 // ──────────────── Init ────────────────
-
 async function init() {
     try {
         const response = await fetch("/ui/tickers.json");
@@ -22,26 +19,13 @@ async function init() {
         console.log(`Loaded ${tickerData.length} tickers`);
     } catch (e) {
         console.error("Failed to load tickers:", e);
-        // App still works — user just won't get autocomplete
     }
     setupAutocomplete();
 }
 
 // ──────────────── Autocomplete ────────────────
-
 function setupAutocomplete() {
-    // Create the suggestions dropdown if it doesn't exist
-    let dropdown = document.getElementById("autocomplete-dropdown");
-    if (!dropdown) {
-        dropdown = document.createElement("div");
-        dropdown.id = "autocomplete-dropdown";
-        dropdown.className = "autocomplete-dropdown";
-        // Insert right after the search row
-        tickerInput.parentElement.parentElement.insertBefore(
-            dropdown,
-            tickerInput.parentElement.nextSibling,
-        );
-    }
+    const dropdown = document.getElementById("autocomplete-dropdown");
     
     tickerInput.addEventListener("input", () => {
         const query = tickerInput.value.trim().toLowerCase();
@@ -66,12 +50,10 @@ function setupAutocomplete() {
                 startResearch();
             }
         } else if (e.key === "Escape") {
-            dropdown.innerHTML = "";
             dropdown.style.display = "none";
         }
     });
     
-    // Click outside closes dropdown
     document.addEventListener("click", (e) => {
         if (!tickerInput.contains(e.target) && !dropdown.contains(e.target)) {
             dropdown.style.display = "none";
@@ -87,19 +69,15 @@ function showSuggestions(query) {
         return;
     }
     
-    // Match against ticker (starts-with priority) AND name (contains)
-    const tickerMatches = tickerData.filter(t =>
-        t.ticker.toLowerCase().startsWith(query)
-    );
+    const tickerMatches = tickerData.filter(t => t.ticker.toLowerCase().startsWith(query));
     const nameMatches = tickerData.filter(t =>
         !t.ticker.toLowerCase().startsWith(query) &&
         t.name.toLowerCase().includes(query)
     );
-    
     const top = [...tickerMatches, ...nameMatches].slice(0, 8);
     
     if (top.length === 0) {
-        dropdown.innerHTML = `<div class="autocomplete-empty">No matches. Press Enter to search "${escapeHtml(query.toUpperCase())}" anyway.</div>`;
+        dropdown.innerHTML = `<div class="autocomplete-empty">Press Enter to search "${escapeHtml(query.toUpperCase())}" anyway.</div>`;
         dropdown.style.display = "block";
         return;
     }
@@ -114,9 +92,7 @@ function showSuggestions(query) {
     activeSuggestionIndex = -1;
     
     dropdown.querySelectorAll(".autocomplete-item").forEach(item => {
-        item.addEventListener("click", () => {
-            pickSuggestion(item.dataset.ticker);
-        });
+        item.addEventListener("click", () => pickSuggestion(item.dataset.ticker));
         item.addEventListener("mouseenter", () => {
             activeSuggestionIndex = parseInt(item.dataset.index);
             updateActiveSuggestion(dropdown.querySelectorAll(".autocomplete-item"));
@@ -125,9 +101,7 @@ function showSuggestions(query) {
 }
 
 function updateActiveSuggestion(items) {
-    items.forEach((item, i) => {
-        item.classList.toggle("active", i === activeSuggestionIndex);
-    });
+    items.forEach((item, i) => item.classList.toggle("active", i === activeSuggestionIndex));
 }
 
 function pickSuggestion(ticker) {
@@ -137,7 +111,6 @@ function pickSuggestion(ticker) {
 }
 
 // ──────────────── Helpers ────────────────
-
 function escapeHtml(text) {
     const div = document.createElement("div");
     div.textContent = String(text);
@@ -160,19 +133,19 @@ function clearAll() {
 }
 
 // ──────────────── Research flow ────────────────
-
 researchBtn.addEventListener("click", startResearch);
 resetBtn.addEventListener("click", () => {
     clearAll();
     tickerInput.value = "";
     tickerInput.focus();
+    window.scrollTo({ top: 0, behavior: "smooth" });
 });
 
 function startResearch() {
     const ticker = tickerInput.value.trim().toUpperCase();
     if (!ticker) return;
     if (!/^[A-Z.]{1,8}$/.test(ticker)) {
-        alert("Please enter a valid ticker (1-8 letters, dots allowed).");
+        alert("Please enter a valid ticker (1-8 letters).");
         return;
     }
 
@@ -180,7 +153,7 @@ function startResearch() {
     clearAll();
     progressSection.style.display = "";
     researchBtn.disabled = true;
-    logLine(`Researching ${ticker}...`, "success");
+    logLine(`Reading about ${ticker}...`, "success");
 
     const source = new EventSource(`/research/${ticker}`);
 
@@ -189,7 +162,7 @@ function startResearch() {
         if (data.type === "progress") {
             logLine(data.message);
         } else if (data.type === "source_done") {
-            logLine(`✓ ${data.source_name}: ${data.chars} chars extracted`, "success");
+            logLine(`Got ${data.chars.toLocaleString()} characters from ${data.source_name}`, "success");
             const img = document.createElement("img");
             img.src = `/screenshots/${data.screenshot}`;
             img.alt = data.source_name;
@@ -197,98 +170,90 @@ function startResearch() {
             img.addEventListener("click", () => window.open(img.src, "_blank"));
             sourcesStrip.appendChild(img);
         } else if (data.type === "complete") {
-            logLine("✓ Brief synthesized.", "success");
-            renderBrief(data.brief);
+            logLine("Done. Writing it up...", "success");
+            renderExplainer(data.brief);
             researchBtn.disabled = false;
             source.close();
         } else if (data.type === "error") {
-            logLine(`✗ ${data.message}`, "error");
+            logLine(`Something went wrong: ${data.message}`, "error");
             researchBtn.disabled = false;
             source.close();
         }
     };
 
     source.onerror = () => {
-        logLine("✗ Connection lost.", "error");
+        logLine("Connection lost.", "error");
         researchBtn.disabled = false;
         source.close();
     };
 }
 
-function renderBrief(brief) {
-    document.getElementById("brief-ticker").textContent = brief.ticker;
-    document.getElementById("brief-company").textContent = brief.company_name;
-    document.getElementById("brief-summary").textContent = brief.one_line_summary;
-    
-    // Animate the numbers
-    animateValue("brief-price", 0, brief.current_price, "$", 2);
-    document.getElementById("brief-mcap").textContent = brief.market_cap || "—";
-    
-    if (brief.pe_ratio) {
-        animateValue("brief-pe", 0, brief.pe_ratio, "", 2);
-    } else {
-        document.getElementById("brief-pe").textContent = "—";
-    }
+// ──────────────── Render ────────────────
+const MOOD_EMOJI = {
+    very_positive: "🟢",
+    positive: "🟢",
+    mixed: "🟡",
+    negative: "🔴",
+    very_negative: "🔴",
+};
 
-    const newsContainer = document.getElementById("brief-news");
-    newsContainer.innerHTML = brief.recent_news.map(n => `
+const MOOD_WORD = {
+    very_positive: "Very positive",
+    positive: "Positive",
+    mixed: "Mixed",
+    negative: "Negative",
+    very_negative: "Concerning",
+};
+
+const NEWS_EMOJI = {
+    good_news: "👍",
+    bad_news: "👎",
+    mixed: "🤔",
+    neutral_info: "ℹ️",
+};
+
+function renderExplainer(e) {
+    document.getElementById("brief-ticker").textContent = e.ticker;
+    document.getElementById("brief-company").textContent = e.company_name;
+    document.getElementById("brief-mood-emoji").textContent = MOOD_EMOJI[e.overall_mood] || "🟡";
+    document.getElementById("brief-mood-word").textContent = MOOD_WORD[e.overall_mood] || "Mixed";
+    document.getElementById("brief-oneliner").textContent = `"${e.mood_one_liner}"`;
+    
+    document.getElementById("brief-what").textContent = e.what_they_do;
+    document.getElementById("brief-story").textContent = e.the_story;
+    
+    document.getElementById("brief-price").textContent = e.current_price
+        ? `$${e.current_price.toFixed(2)}`
+        : "Price not available";
+    document.getElementById("brief-price-context").textContent = e.price_context;
+    document.getElementById("brief-size-context").textContent = e.company_size_context;
+    
+    document.getElementById("brief-good").innerHTML = e.good_signs
+        .map(s => `<li>${escapeHtml(s)}</li>`).join("");
+    document.getElementById("brief-concerns").innerHTML = e.concerns
+        .map(s => `<li>${escapeHtml(s)}</li>`).join("");
+    
+    document.getElementById("brief-takeaway").textContent = e.honest_takeaway;
+    
+    document.getElementById("brief-news").innerHTML = e.recent_news.map(n => `
         <div class="news-item">
-            <div class="news-header">
-                <div class="news-sentiment ${n.sentiment}"></div>
+            <div class="news-mood">${NEWS_EMOJI[n.mood] || "ℹ️"}</div>
+            <div class="news-body">
                 <div class="news-headline">${escapeHtml(n.headline)}</div>
+                <div class="news-meta">${escapeHtml(n.source)} · ${escapeHtml(n.age)}</div>
+                <div class="news-summary">${escapeHtml(n.plain_summary)}</div>
             </div>
-            <div class="news-meta">${escapeHtml(n.source)} · ${escapeHtml(n.age)}</div>
-            <div class="news-summary">${escapeHtml(n.summary)}</div>
         </div>
     `).join("");
-
-    document.getElementById("brief-bull").innerHTML = brief.bull_case
-        .map(b => `<li>${escapeHtml(b)}</li>`).join("");
-    document.getElementById("brief-bear").innerHTML = brief.bear_case
-        .map(b => `<li>${escapeHtml(b)}</li>`).join("");
-    document.getElementById("brief-risks").innerHTML = brief.key_risks
-        .map(r => `<li>${escapeHtml(r)}</li>`).join("");
-    document.getElementById("brief-confidence").textContent = brief.confidence_note;
-    document.getElementById("brief-sources").innerHTML = brief.sources_visited
-        .map(s => `<li>${escapeHtml(s)}</li>`).join("");
-
-    resultsSection.style.display = "";
-    // Stagger the card reveals for a nice cascade effect
-    const cards = resultsSection.querySelectorAll(".card");
-    cards.forEach((card, i) => {
-        card.style.animation = `fadeInUp 0.45s ease ${i * 80}ms backwards`;
-    });
     
+    document.getElementById("brief-limits").textContent = e.what_we_could_not_check;
+    document.getElementById("brief-sources").innerHTML = e.sources_visited
+        .map(s => `<li>${escapeHtml(s)}</li>`).join("");
+    
+    resultsSection.style.display = "";
     setTimeout(() => {
         resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 100);
+    }, 200);
 }
 
-// Animated number counter
-function animateValue(elementId, start, end, prefix = "", decimals = 0) {
-    if (end === null || end === undefined) {
-        document.getElementById(elementId).textContent = "—";
-        return;
-    }
-    const element = document.getElementById(elementId);
-    const duration = 800;
-    const startTime = performance.now();
-    
-    function step(currentTime) {
-        const elapsed = currentTime - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        // Ease-out cubic
-        const eased = 1 - Math.pow(1 - progress, 3);
-        const current = start + (end - start) * eased;
-        element.textContent = `${prefix}${current.toFixed(decimals)}`;
-        if (progress < 1) {
-            requestAnimationFrame(step);
-        } else {
-            element.textContent = `${prefix}${end.toFixed(decimals)}`;
-        }
-    }
-    requestAnimationFrame(step);
-}
-
-// Boot
 init();

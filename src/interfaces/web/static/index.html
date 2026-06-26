@@ -3,87 +3,108 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FinScout</title>
+    <title>FinScout — Stocks, Explained</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header>
-        <h1>📈 FinScout</h1>
-        <p class="tagline">AI agent that researches stocks by actually browsing the web.</p>
+        <h1>FinScout</h1>
+        <p class="tagline">Get the honest story behind any stock — in plain English.</p>
     </header>
 
     <main>
-        <!-- Input section -->
-        <section class="card" id="input-section">
-            <div class="search-row">
-                <input
-                    type="text"
-                    id="ticker-input"
-                    placeholder="Enter ticker (e.g., NVDA, AAPL, TSLA)"
-                    autocomplete="off"
-                    maxlength="8"
-                >
-                <button id="research-btn">Research</button>
+        <!-- Search -->
+        <section id="input-section">
+            <div class="search-wrap">
+                <div class="search-row">
+                    <input
+                        type="text"
+                        id="ticker-input"
+                        placeholder="Type a company or ticker..."
+                        autocomplete="off"
+                        maxlength="20"
+                    >
+                    <button id="research-btn">Explain</button>
+                </div>
+                <div id="autocomplete-dropdown" class="autocomplete-dropdown"></div>
             </div>
-            <p class="hint">Takes ~60 seconds. The agent visits Yahoo Finance and Google News, then synthesizes a structured brief.</p>
+            <p class="hint">Takes about a minute. The agent reads multiple sources and writes a plain-English story.</p>
         </section>
 
         <!-- Live progress -->
-        <section class="card" id="progress-section" style="display: none;">
-            <h3>🔄 Agent activity</h3>
+        <section id="progress-section" style="display: none;">
+            <h3>Working on it</h3>
             <div id="progress-log" class="progress-log"></div>
             <div id="sources-strip" class="sources-strip"></div>
         </section>
 
-        <!-- Results -->
-        <section id="results-section" style="display: none;">
-            <div class="card brief-header">
-                <div class="ticker-row">
-                    <h2 id="brief-ticker">—</h2>
+        <!-- Results — an article layout -->
+        <article id="results-section" style="display: none;">
+            <div class="article-header">
+                <div class="ticker-label">
+                    <span id="brief-ticker">—</span>
                     <span id="brief-company"></span>
                 </div>
-                <p id="brief-summary" class="brief-summary"></p>
-                <div class="metrics-row">
-                    <div class="metric"><label>Price</label><span id="brief-price">—</span></div>
-                    <div class="metric"><label>Market Cap</label><span id="brief-mcap">—</span></div>
-                    <div class="metric"><label>P/E</label><span id="brief-pe">—</span></div>
+                
+                <div class="mood-block">
+                    <span id="brief-mood-emoji" class="mood-emoji"></span>
+                    <span id="brief-mood-word" class="mood-word"></span>
                 </div>
+                
+                <p id="brief-oneliner" class="oneliner"></p>
             </div>
 
-            <div class="card">
-                <h3>📰 Recent News</h3>
+            <section class="story-section">
+                <h3>What they do</h3>
+                <p id="brief-what" class="prose"></p>
+            </section>
+
+            <section class="story-section">
+                <h3>The story</h3>
+                <p id="brief-story" class="prose prose-lg"></p>
+            </section>
+
+            <section class="story-section">
+                <h3>Right now</h3>
+                <p id="brief-price" class="price-line"></p>
+                <p id="brief-price-context" class="prose"></p>
+                <p id="brief-size-context" class="prose"></p>
+            </section>
+
+            <section class="story-section two-col">
+                <div class="col">
+                    <h3>What's working</h3>
+                    <ul id="brief-good" class="signal-list good"></ul>
+                </div>
+                <div class="col">
+                    <h3>What to watch</h3>
+                    <ul id="brief-concerns" class="signal-list concerns"></ul>
+                </div>
+            </section>
+
+            <section class="story-section takeaway-section">
+                <h3>The honest takeaway</h3>
+                <p id="brief-takeaway" class="prose prose-lg"></p>
+            </section>
+
+            <section class="story-section">
+                <h3>Recent news</h3>
                 <div id="brief-news"></div>
-            </div>
+            </section>
 
-            <div class="card cases-card">
-                <div class="case bull">
-                    <h3>📈 Bull Case</h3>
-                    <ul id="brief-bull"></ul>
-                </div>
-                <div class="case bear">
-                    <h3>📉 Bear Case</h3>
-                    <ul id="brief-bear"></ul>
-                </div>
-            </div>
-
-            <div class="card">
-                <h3>⚠️ Key Risks</h3>
-                <ul id="brief-risks"></ul>
-            </div>
-
-            <div class="card honesty-card">
-                <h3>🤔 Confidence Note</h3>
-                <p id="brief-confidence"></p>
-                <p class="sources-label">Sources visited:</p>
+            <section class="story-section footnote-section">
+                <h3>What we couldn't check</h3>
+                <p id="brief-limits" class="prose prose-small"></p>
+                <p class="sources-label">Sources read</p>
                 <ul id="brief-sources" class="sources-list"></ul>
-            </div>
+            </section>
 
-            <button id="reset-btn" class="secondary">Research another</button>
-        </section>
+            <button id="reset-btn" class="secondary">Explain another stock</button>
+        </article>
     </main>
 
     <footer>
-        <p><a href="/docs" target="_blank">API docs</a></p>
+        <p>Not investment advice. Just trying to help you understand what's going on.</p>
     </footer>
 
     <script src="app.js"></script>
