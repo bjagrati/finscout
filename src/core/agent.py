@@ -68,49 +68,79 @@ The sources you're given are raw extracted text from real web pages. They will c
 
 
 def research(ticker: str, sources=None) -> ResearchBrief:
-    """Run the full research pipeline for a ticker and return a structured brief."""
+    """Run the full research pipeline for a ticker and return a structured brief.
+    
+    Non-streaming version. Calls research_stream() internally and discards events.
+    """
+    final_brief = None
+    for event in research_stream(ticker, sources):
+        if event["type"] == "complete":
+            final_brief = event["brief"]
+    if final_brief is None:
+        raise RuntimeError("Research stream completed without producing a brief.")
+    return final_brief
+
+
+def research_stream(ticker: str, sources=None):
+    """Streaming version of research(). Yields progress events as it works.
+    
+    Yields dicts with shape:
+      {"type": "progress", "message": "..."}      — progress updates
+      {"type": "source_done", "url": "...", "chars": N, "screenshot": "..."}  — per-source completion
+      {"type": "complete", "brief": <ResearchBrief>}     — final result
+      {"type": "error", "message": "..."}         — fatal errors
+    """
     ticker = ticker.upper().strip()
     if not ticker:
-        raise ValueError("Ticker cannot be empty.")
+        yield {"type": "error", "message": "Ticker cannot be empty."}
+        return
     
     sources = sources or DEFAULT_SOURCES
     
-    print(f"\n🔍 Researching {ticker}...\n")
+    yield {"type": "progress", "message": f"Starting research on {ticker}..."}
     
-    # Step 1: Browse all sources, collect content
     extracted: list[PageContent] = []
-    with PageExtractor() as extractor:
-        for source_name, url_builder in sources:
-            url = url_builder(ticker)
-            print(f"  📄 Visiting {source_name}: {url}")
-            try:
-                content = extractor.extract(url)
-                print(f"     ✓ Got {content.text_length} chars")
-                extracted.append(content)
-            except Exception as e:
-                print(f"     ⚠️  Failed: {e}")
-                # Continue — we'd rather have a partial brief than no brief
+    try:
+        with PageExtractor() as extractor:
+            for source_name, url_builder in sources:
+                url = url_builder(ticker)
+                yield {"type": "progress", "message": f"Visiting {source_name}..."}
+                try:
+                    content = extractor.extract(url)
+                    extracted.append(content)
+                    # Strip the absolute prefix so the frontend can build a relative URL
+                    screenshot_filename = Path(content.screenshot_path).name
+                    yield {
+                        "type": "source_done",
+                        "source_name": source_name,
+                        "url": url,
+                        "chars": content.text_length,
+                        "screenshot": screenshot_filename,
+                    }
+                except Exception as e:
+                    yield {"type": "progress", "message": f"⚠️ {source_name} failed: {e}"}
+    except Exception as e:
+        yield {"type": "error", "message": f"Browser session failed: {e}"}
+        return
     
     if not extracted:
-        raise RuntimeError(f"Could not extract content from any source for {ticker}.")
+        yield {"type": "error", "message": f"Could not extract content from any source for {ticker}."}
+        return
     
-    print(f"\n🧠 Synthesizing brief from {len(extracted)} source(s)...\n")
+    yield {"type": "progress", "message": f"Synthesizing brief from {len(extracted)} source(s)..."}
     
-    # Step 2: Build the analysis prompt
-    prompt = _build_synthesis_prompt(ticker, extracted)
-    
-    # Step 3: Get structured output from Claude
-    brief = structured_call(
-        prompt=prompt,
-        response_model=ResearchBrief,
-        system=_SYSTEM_PROMPT,
-        max_tokens=6000,
-    )
-    
-    # Step 4: Ensure sources_visited reflects reality, not what Claude claims
-    brief.sources_visited = [c.url for c in extracted]
-    
-    return brief
+    try:
+        prompt = _build_synthesis_prompt(ticker, extracted)
+        brief = structured_call(
+            prompt=prompt,
+            response_model=ResearchBrief,
+            system=_SYSTEM_PROMPT,
+            max_tokens=6000,
+        )
+        brief.sources_visited = [c.url for c in extracted]
+        yield {"type": "complete", "brief": brief}
+    except Exception as e:
+        yield {"type": "error", "message": f"Synthesis failed: {e}"}
 
 
 def _build_synthesis_prompt(ticker: str, extracted: list[PageContent]) -> str:

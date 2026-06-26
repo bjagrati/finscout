@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinScout</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>📈 FinScout</h1>
+        <p class="tagline">AI agent that researches stocks by actually browsing the web.</p>
+    </header>
+
+    <main>
+        <!-- Input section -->
+        <section class="card" id="input-section">
+            <div class="search-row">
+                <input
+                    type="text"
+                    id="ticker-input"
+                    placeholder="Enter ticker (e.g., NVDA, AAPL, TSLA)"
+                    autocomplete="off"
+                    maxlength="8"
+                >
+                <button id="research-btn">Research</button>
+            </div>
+            <p class="hint">Takes ~60 seconds. The agent visits Yahoo Finance and Google News, then synthesizes a structured brief.</p>
+        </section>
+
+        <!-- Live progress -->
+        <section class="card" id="progress-section" style="display: none;">
+            <h3>🔄 Agent activity</h3>
+            <div id="progress-log" class="progress-log"></div>
+            <div id="sources-strip" class="sources-strip"></div>
+        </section>
+
+        <!-- Results -->
+        <section id="results-section" style="display: none;">
+            <div class="card brief-header">
+                <div class="ticker-row">
+                    <h2 id="brief-ticker">—</h2>
+                    <span id="brief-company"></span>
+                </div>
+                <p id="brief-summary" class="brief-summary"></p>
+                <div class="metrics-row">
+                    <div class="metric"><label>Price</label><span id="brief-price">—</span></div>
+                    <div class="metric"><label>Market Cap</label><span id="brief-mcap">—</span></div>
+                    <div class="metric"><label>P/E</label><span id="brief-pe">—</span></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>📰 Recent News</h3>
+                <div id="brief-news"></div>
+            </div>
+
+            <div class="card cases-card">
+                <div class="case bull">
+                    <h3>📈 Bull Case</h3>
+                    <ul id="brief-bull"></ul>
+                </div>
+                <div class="case bear">
+                    <h3>📉 Bear Case</h3>
+                    <ul id="brief-bear"></ul>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>⚠️ Key Risks</h3>
+                <ul id="brief-risks"></ul>
+            </div>
+
+            <div class="card honesty-card">
+                <h3>🤔 Confidence Note</h3>
+                <p id="brief-confidence"></p>
+                <p class="sources-label">Sources visited:</p>
+                <ul id="brief-sources" class="sources-list"></ul>
+            </div>
+
+            <button id="reset-btn" class="secondary">Research another</button>
+        </section>
+    </main>
+
+    <footer>
+        <p><a href="/docs" target="_blank">API docs</a></p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
