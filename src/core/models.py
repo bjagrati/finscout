@@ -1,126 +1,172 @@
-"""Pydantic models for FinScout research outputs."""
+"""Pydantic models for FinScout — humanized stock explainer."""
 from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 
-# ──────────────── News items ────────────────
+# ──────────────── News (humanized) ────────────────
 
 class NewsItem(BaseModel):
-    """A single recent news headline about the company."""
+    """A single recent news headline, framed for non-finance readers."""
     
-    headline: str = Field(..., description="The article headline, copied verbatim from the source.")
+    headline: str = Field(..., description="The article headline, copied verbatim.")
     
-    source: str = Field(
-        ...,
-        description="Publication name (e.g., 'Reuters', 'CNBC', 'Bloomberg'). If unknown, use 'Unknown'.",
-    )
+    source: str = Field(..., description="Publication name (Reuters, CNBC, etc.). Use 'Unknown' if not stated.")
     
-    age: str = Field(
-        ...,
-        description="How recent, as shown on the page (e.g., '2 hours ago', '3 days ago', 'June 25').",
-    )
+    age: str = Field(..., description="How recent (e.g., '2 hours ago', 'Yesterday').")
     
-    sentiment: Literal["positive", "negative", "neutral"] = Field(
+    mood: Literal["good_news", "bad_news", "mixed", "neutral_info"] = Field(
         ...,
         description=(
-            "Sentiment of the headline toward the stock. 'Positive' = bullish/good news. "
-            "'Negative' = bearish/bad news. 'Neutral' = informational or mixed."
+            "The mood of this news for the stock. "
+            "'good_news' = clearly positive, 'bad_news' = clearly negative, "
+            "'mixed' = both positive and negative, 'neutral_info' = informational with no clear direction."
         ),
     )
     
-    summary: str = Field(
+    plain_summary: str = Field(
         ...,
-        description="One-sentence summary of what this headline means for the stock.",
+        description=(
+            "A 1-sentence summary in plain English that a high-schooler would understand. "
+            "No finance jargon. If the headline mentions specific terms (P/E, EBITDA, EPS), "
+            "either explain them or rephrase without them."
+        ),
     )
 
 
-# ──────────────── The full brief ────────────────
+# ──────────────── The humanized brief ────────────────
 
-class ResearchBrief(BaseModel):
-    """A complete equity research brief synthesizing multiple web sources."""
+class StockExplainer(BaseModel):
+    """A plain-English explanation of what's going on with a stock, designed for non-finance readers."""
     
     # Identity
-    ticker: str = Field(..., description="The stock ticker symbol (e.g., 'NVDA').")
+    ticker: str = Field(..., description="Stock ticker (e.g., 'NVDA').")
     
-    company_name: str = Field(
+    company_name: str = Field(..., description="Full company name (e.g., 'NVIDIA Corporation').")
+    
+    what_they_do: str = Field(
         ...,
-        description="The full company name (e.g., 'NVIDIA Corporation').",
-    )
-    
-    # Numbers — all optional because not every source has them
-    current_price: Optional[float] = Field(
-        None,
-        description="Current share price in USD if found, else None. Do not invent.",
-    )
-    
-    market_cap: Optional[str] = Field(
-        None,
         description=(
-            "Market capitalization as shown on the page, including units (e.g., '$3.5T', '$847B'). "
-            "Copy exactly as shown. None if not found."
+            "A single sentence explaining what the company actually does, "
+            "in language a high-schooler would understand. "
+            "Example: 'NVIDIA makes the special computer chips that power most modern AI systems.' "
+            "AVOID jargon. AVOID 'industry leader in semiconductor solutions for...' type phrasing."
         ),
     )
     
-    pe_ratio: Optional[float] = Field(
-        None,
-        description="Price-to-Earnings ratio if shown. None if not found or 'N/A'.",
-    )
-    
-    # The narrative
-    one_line_summary: str = Field(
+    # The headline verdict — the most important field
+    overall_mood: Literal["very_positive", "positive", "mixed", "negative", "very_negative"] = Field(
         ...,
         description=(
-            "A single sentence capturing the current state of the stock and the dominant narrative. "
-            "Example: 'AI infrastructure leader showing first signs of cooling after a record-breaking run.'"
+            "The dominant story for this stock right now. "
+            "'very_positive' = strong tailwinds, broadly bullish news. "
+            "'positive' = generally good but some concerns. "
+            "'mixed' = real positives and real negatives, no clear direction. "
+            "'negative' = mostly concerning news or weak performance. "
+            "'very_negative' = serious problems or crashing stock. "
+            "Be HONEST — don't default to 'mixed' to avoid taking a position."
+        ),
+    )
+    
+    mood_one_liner: str = Field(
+        ...,
+        description=(
+            "ONE sentence (max 15 words) capturing the current state in plain language. "
+            "Examples: 'Strong company, but the stock has cooled off this week.' "
+            "'Solid earnings have investors excited about the next year.' "
+            "'Real concerns about competition are weighing on the price.'"
+        ),
+    )
+    
+    # The story
+    the_story: str = Field(
+        ...,
+        description=(
+            "A 3-5 sentence plain-English story explaining what's happening with this stock RIGHT NOW. "
+            "Lead with the most important thing. Connect cause to effect. "
+            "Mention numbers ONLY when they have clear meaning ('they made $30 billion in profit last quarter' "
+            "is fine; 'TTM revenue of $253.49B with 62.97% margins' is NOT). "
+            "Tone: thoughtful friend explaining over coffee, not Wall Street analyst."
+        ),
+    )
+    
+    # Current snapshot — simplified
+    current_price: Optional[float] = Field(
+        None,
+        description="Current stock price in USD. None if not extracted.",
+    )
+    
+    price_context: str = Field(
+        ...,
+        description=(
+            "1 sentence putting the current price in context. "
+            "Examples: 'Down 3% today, but up 45% this year.' "
+            "'Near its all-time high after a strong week.' "
+            "'Has fallen sharply from $250 earlier this year.' "
+            "Use only price/performance facts visible in the sources."
+        ),
+    )
+    
+    company_size_context: str = Field(
+        ...,
+        description=(
+            "1 sentence putting the company's size in relatable terms. "
+            "Examples: 'NVIDIA is now worth more than the entire economy of France.' "
+            "'A mid-sized company, smaller than McDonald's.' "
+            "Use the market cap from sources but DO NOT use raw '$4.7T' phrasing — translate it."
+        ),
+    )
+    
+    # Good and bad signals — humanized bull/bear
+    good_signs: list[str] = Field(
+        ...,
+        description=(
+            "2-4 things going well for this stock, in plain English. "
+            "Each one sentence. No jargon. "
+            "Good example: 'The company keeps making more money than analysts expected.' "
+            "BAD example: 'Strong Q1 EPS beat with positive guidance for FY27.'"
+        ),
+    )
+    
+    concerns: list[str] = Field(
+        ...,
+        description=(
+            "2-4 things to watch out for, in plain English. "
+            "Each one sentence. Frame as 'why someone might be worried,' not as 'sell signals.' "
+            "Good example: 'Some big investors are quietly selling, which suggests they expect a slowdown.' "
+            "BAD example: 'Hedge fund positioning shows net short flow with declining institutional ownership.'"
+        ),
+    )
+    
+    # The takeaway
+    honest_takeaway: str = Field(
+        ...,
+        description=(
+            "2-3 sentences. The 'if I were explaining this to a friend' bottom line. "
+            "Honest about uncertainty. Should help a normal person think about the stock without telling them what to do. "
+            "Good example: 'NVIDIA is a great company having a normal stock wobble. If you already own it, no need to panic. "
+            "If you're thinking about buying, you might want to wait a few weeks and see if the price stabilizes.' "
+            "AVOID phrasings that constitute investment advice ('buy', 'sell', 'strong buy'). "
+            "DO use human framings ('worth keeping an eye on', 'not a panic moment', 'real questions to ask before buying')."
         ),
     )
     
     recent_news: list[NewsItem] = Field(
         ...,
-        description=(
-            "The 3-6 most relevant recent headlines. Prioritize by recency AND relevance. "
-            "Don't include unrelated sponsored content or irrelevant trending news."
-        ),
+        description="3-5 most relevant recent headlines, ranked by importance and recency.",
     )
     
-    bull_case: list[str] = Field(
-        ...,
-        description=(
-            "3-5 specific reasons to be optimistic about this stock, based ONLY on evidence from the visited sources. "
-            "Each bullet should be 1-2 sentences and reference specific facts when possible. "
-            "If the sources don't support a bull case, return fewer bullets — don't invent."
-        ),
-    )
-    
-    bear_case: list[str] = Field(
-        ...,
-        description=(
-            "3-5 specific reasons to be concerned about this stock, based ONLY on evidence from the visited sources. "
-            "Each bullet should be 1-2 sentences. "
-            "Look for concerns mentioned in news headlines, analyst views, or competitive dynamics."
-        ),
-    )
-    
-    key_risks: list[str] = Field(
-        ...,
-        description=(
-            "2-4 concrete risks to monitor (e.g., regulatory, competitive, macroeconomic). "
-            "Different from bear_case: these are forward-looking watch items, not current negatives."
-        ),
-    )
-    
-    # Provenance
+    # Provenance & honesty
     sources_visited: list[str] = Field(
         ...,
-        description="URLs of all pages visited to produce this brief.",
+        description="URLs visited to build this explainer.",
     )
     
-    confidence_note: str = Field(
+    what_we_could_not_check: str = Field(
         ...,
         description=(
-            "An honest 2-3 sentence note about the brief's limitations. "
-            "Mention what we COULDN'T access (paywalled sources, missing earnings data, etc.). "
-            "Mention any data points that were inferred rather than directly read. "
-            "This builds trust by being upfront about what the agent does and doesn't know."
+            "A plain-English note about limitations. "
+            "Example: 'This is based on Yahoo Finance and Google News headlines from the last few hours. "
+            "We didn't read the full articles, and we can't see things like analyst reports or detailed earnings data.' "
+            "Make it feel honest, not technical."
         ),
     )

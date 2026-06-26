@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 
 from core.page_extractor import PageExtractor, PageContent
 from core.llm import structured_call
-from core.models import ResearchBrief
+from core.models import StockExplainer
 
 
 _ENV_PATH = Path(__file__).parent.parent.parent / ".env"
@@ -53,21 +53,32 @@ DEFAULT_SOURCES = [
 
 # ──────────────── The agent ────────────────
 
-_SYSTEM_PROMPT = """You are a careful equity research analyst.
+_SYSTEM_PROMPT = """You are a thoughtful friend who happens to understand finance, explaining a stock to someone who doesn't follow markets.
 
-Your job: read the raw content from multiple web sources about a stock, then produce a structured research brief.
+Your job: read raw web content about a company, then produce a plain-English explainer that a high-schooler could understand and find useful.
 
-CRITICAL RULES:
-1. NEVER invent numbers. If a price, market cap, or P/E isn't shown in the sources, return None for that field.
-2. NEVER invent news. If the sources don't contain enough headlines, return fewer items.
-3. NEVER invent quotes or claim a specific analyst said something unless their name appears in the source.
-4. Be HONEST in confidence_note about what you could and couldn't verify.
-5. Bull and bear cases must be grounded in evidence visible in the sources. If sources only show price action and headlines, the cases should reflect that — don't pretend to know things like "growing revenue in segment X" unless that's actually stated.
+TONE:
+- Like explaining over coffee, not delivering an analyst report
+- Honest about uncertainty
+- Specific when possible, vague when necessary
+- Never preachy, never condescending
 
-The sources you're given are raw extracted text from real web pages. They will contain noise: navigation menus, ads, "sign in" prompts, sidebar widgets for other stocks. Filter that out mentally and focus on the substance about the requested ticker."""
+LANGUAGE RULES:
+- NO jargon without translation. Avoid 'P/E', 'EBITDA', 'EPS', 'guidance', 'multiple', 'productionize'.
+- When you must mention a number, give it meaning. Not 'TTM revenue $253B' — instead 'they made $253 billion in sales over the past year, which is more than the GDP of Portugal.'
+- Replace 'bullish' / 'bearish' with 'optimistic' / 'concerned' / 'worried.'
+- Replace 'analysts' with 'people who study the company' when needed.
+
+HONESTY RULES:
+- NEVER invent numbers. If a price, market cap, or growth rate isn't shown, leave that field None or omit it from prose.
+- NEVER invent news or quotes. If the sources don't support an angle, don't include it.
+- NEVER tell the user what to do. Use framings like 'worth watching' or 'real questions to ask' rather than 'buy' or 'sell.'
+- If the sources are thin, say so. 'what_we_could_not_check' should be honest.
+
+The source material below contains noise (nav menus, ads, sidebar widgets for OTHER stocks). Filter mentally and focus on the ticker requested. Sidebar widgets often show prices for different companies — don't confuse them with the main subject."""
 
 
-def research(ticker: str, sources=None) -> ResearchBrief:
+def research(ticker: str, sources=None) -> StockExplainer:
     """Run the full research pipeline for a ticker and return a structured brief.
     
     Non-streaming version. Calls research_stream() internally and discards events.
@@ -87,7 +98,7 @@ def research_stream(ticker: str, sources=None):
     Yields dicts with shape:
       {"type": "progress", "message": "..."}      — progress updates
       {"type": "source_done", "url": "...", "chars": N, "screenshot": "..."}  — per-source completion
-      {"type": "complete", "brief": <ResearchBrief>}     — final result
+      {"type": "complete", "brief": <StockExplainer>}     — final result
       {"type": "error", "message": "..."}         — fatal errors
     """
     ticker = ticker.upper().strip()
@@ -133,7 +144,7 @@ def research_stream(ticker: str, sources=None):
         prompt = _build_synthesis_prompt(ticker, extracted)
         brief = structured_call(
             prompt=prompt,
-            response_model=ResearchBrief,
+            response_model=StockExplainer,
             system=_SYSTEM_PROMPT,
             max_tokens=6000,
         )
@@ -155,7 +166,7 @@ def _build_synthesis_prompt(ticker: str, extracted: list[PageContent]) -> str:
         "",
         "Below are extracted text dumps from web pages. Each is REFERENCE MATERIAL — "
         "use it to inform your research brief, but do NOT echo it back. Your output "
-        "must be a structured ResearchBrief.",
+        "must be a structured StockExplainer.",
         "",
     ]
     
@@ -172,7 +183,7 @@ def _build_synthesis_prompt(ticker: str, extracted: list[PageContent]) -> str:
     
     parts.append("═══ YOUR TASK ═══")
     parts.append(
-        f"Produce a structured ResearchBrief for {ticker}. "
+        f"Produce a structured StockExplainer for {ticker}. "
         "Focus on substance, not noise. "
         "Be honest in confidence_note about what was and wasn't extractable from these sources."
     )
