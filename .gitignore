@@ -1,0 +1,28 @@
+# Secrets
+.env
+.env.local
+
+# Python
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+
+# Generated artifacts — too big for git, easily regenerable
+screenshots/*
+!screenshots/.gitkeep
+storage/
+
+# Playwright
+.playwright/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
